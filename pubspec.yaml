@@ -16,7 +16,7 @@ dependencies:
   path_provider: ^2.1.5
   awesome_notifications: ^0.10.1
   shared_preferences: ^2.2.3
-  package_info_plus: ^5.0.1
+  package_info_plus: ^6.0.0
 
 dev_dependencies:
   flutter_test:

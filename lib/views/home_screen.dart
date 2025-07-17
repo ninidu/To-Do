@@ -17,13 +17,14 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ItemModel> _items = [];
   List<ItemModel> _filteredItems = [];
 
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
     _initializeItems();
     _searchController.addListener(_onSearchChanged);
 
-    // Ask permission for notifications
     NotificationService.requestPermission();
   }
 
@@ -38,12 +39,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onSearchChanged() {
     final query = _searchController.text.toLowerCase();
+
+    if (query.isEmpty) {
+      setState(() {
+        _isSearching = false;
+        _filteredItems = List.from(_items);
+      });
+      return;
+    }
+
     setState(() {
-      _filteredItems = query.isEmpty
-          ? List.from(_items)
-          : _items
-                .where((item) => item.task.toLowerCase().contains(query))
-                .toList();
+      _isSearching = true;
+      _filteredItems = _items
+          .where((item) => item.task.toLowerCase().contains(query))
+          .toList();
     });
   }
 
@@ -84,12 +93,55 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _startSearch() {
+    setState(() {
+      _isSearching = true;
+    });
+  }
+
+  void _stopSearch() {
+    _searchController.clear();
+    setState(() {
+      _isSearching = false;
+      _filteredItems = List.from(_items);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isSearching = _searchController.text.isNotEmpty;
-
     return Scaffold(
-      appBar: AppBar(title: const Text("To-Do"), centerTitle: true),
+      appBar: AppBar(
+        title: !_isSearching
+            ? const Text("To-Do")
+            : TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: "Search tasks...",
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+        centerTitle: true,
+        actions: [
+          !_isSearching
+              ? IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: _startSearch,
+                )
+              : IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _stopSearch,
+                ),
+        ],
+      ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -161,19 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: "Search tasks...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
+          // Removed the old always visible search TextField here
           Expanded(
             child: _filteredItems.isEmpty
                 ? const Center(
@@ -182,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   )
-                : isSearching
+                : _isSearching
                 ? ListView.builder(
                     itemCount: _filteredItems.length,
                     itemBuilder: (context, index) {
@@ -216,6 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        shape: const StadiumBorder(),
         onPressed: () => _showAddTaskDialog(context),
         child: const Icon(Icons.add),
       ),
