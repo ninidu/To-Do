@@ -17,6 +17,7 @@ dependencies:
   awesome_notifications: ^0.10.1
   shared_preferences: ^2.2.3
   package_info_plus: ^6.0.0
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
@@ -38,3 +39,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/background1.jpg
+    - assets/background2.jpg
+    - assets/background3.jpg
