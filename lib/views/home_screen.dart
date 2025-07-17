@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:to_do_list/models/item_model.dart';
 import 'package:to_do_list/viewmodels/item_viewmodel.dart';
 import 'package:to_do_list/services/notification_service.dart';
@@ -18,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ItemModel> _filteredItems = [];
 
   bool _isSearching = false;
+  String? _backgroundImagePath;
 
   @override
   void initState() {
@@ -25,7 +29,16 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeItems();
     _searchController.addListener(_onSearchChanged);
 
+    _loadBackgroundImage();
+
     NotificationService.requestPermission();
+  }
+
+  Future<void> _loadBackgroundImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _backgroundImagePath = prefs.getString('background_image');
+    });
   }
 
   Future<void> _initializeItems() async {
@@ -200,58 +213,81 @@ class _HomeScreenState extends State<HomeScreen> {
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('Settings'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const SettingsScreen()),
                 );
+                await _loadBackgroundImage(); // Reload background after returning from settings
               },
             ),
           ],
         ),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Removed the old always visible search TextField here
-          Expanded(
-            child: _filteredItems.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No tasks found.",
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
+          if (_backgroundImagePath != null)
+            _backgroundImagePath!.startsWith('assets/')
+                ? Image.asset(
+                    _backgroundImagePath!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   )
-                : _isSearching
-                ? ListView.builder(
-                    itemCount: _filteredItems.length,
-                    itemBuilder: (context, index) {
-                      return _buildDismissibleItem(
-                        _filteredItems[index],
-                        index,
-                        allowReorder: false,
-                      );
-                    },
-                  )
-                : ReorderableListView.builder(
-                    itemCount: _items.length,
-                    onReorder: (oldIndex, newIndex) async {
-                      if (newIndex > oldIndex) newIndex -= 1;
-                      final viewModel = Provider.of<ItemViewModel>(
-                        context,
-                        listen: false,
-                      );
-                      await viewModel.reorderItems(oldIndex, newIndex);
-                      await _initializeItems();
-                    },
-                    itemBuilder: (context, index) {
-                      return _buildDismissibleItem(
-                        _items[index],
-                        index,
-                        allowReorder: true,
-                      );
-                    },
+                : Image.file(
+                    File(_backgroundImagePath!),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
+          Container(
+            color: Colors.black.withOpacity(
+              0.3,
+            ), // overlay to keep text visible
+          ),
+          Column(
+            children: [
+              Expanded(
+                child: _filteredItems.isEmpty
+                    ? const Center(
+                        child: Text(
+                          "No tasks found.",
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      )
+                    : _isSearching
+                    ? ListView.builder(
+                        itemCount: _filteredItems.length,
+                        itemBuilder: (context, index) {
+                          return _buildDismissibleItem(
+                            _filteredItems[index],
+                            index,
+                            allowReorder: false,
+                          );
+                        },
+                      )
+                    : ReorderableListView.builder(
+                        itemCount: _items.length,
+                        onReorder: (oldIndex, newIndex) async {
+                          if (newIndex > oldIndex) newIndex -= 1;
+                          final viewModel = Provider.of<ItemViewModel>(
+                            context,
+                            listen: false,
+                          );
+                          await viewModel.reorderItems(oldIndex, newIndex);
+                          await _initializeItems();
+                        },
+                        itemBuilder: (context, index) {
+                          return _buildDismissibleItem(
+                            _items[index],
+                            index,
+                            allowReorder: true,
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:to_do_list/viewmodels/settings_viewmodel.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,6 +18,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Color _selectedColor;
   bool _notificationsEnabled = true;
   String _version = '';
+
+  String? _selectedImage;
+  final List<String> _predefinedImages = [
+    'assets/background1.jpg',
+    'assets/background2.jpeg',
+    'assets/background3.jpg',
+  ];
 
   final List<Color> _presetColors = [
     Colors.teal,
@@ -33,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _selectedColor = settings.accentColor;
     _loadNotificationPreference();
     _loadVersionInfo();
+    _loadSelectedImage();
   }
 
   Future<void> _loadNotificationPreference() async {
@@ -71,6 +81,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).setAccentColor(color);
   }
 
+  Future<void> _loadSelectedImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedImage = prefs.getString('background_image');
+    });
+  }
+
+  Future<void> _saveSelectedImage(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('background_image', path);
+    setState(() {
+      _selectedImage = path;
+    });
+  }
+
+  Future<void> _pickCustomImage() async {
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      await _saveSelectedImage(picked.path);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,7 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // 🔹 Header
           Container(
-            height: 100, // Your desired reduced height
+            height: 100,
             width: double.infinity,
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -89,8 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.end, // 👈 Push content to bottom
+              mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 Padding(
@@ -231,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          "Version: $_version", // ✅ runtime value allowed now
+                          "Version: $_version",
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
@@ -258,6 +290,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+
+          const SizedBox(height: 32),
+
+          // 🖼️ Background Image Picker Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: const Text(
+              "Background Image",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Wrap(
+              spacing: 10,
+              children: _predefinedImages.map((path) {
+                return GestureDetector(
+                  onTap: () => _saveSelectedImage(path),
+                  child: Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      Image.asset(
+                        path,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                      if (_selectedImage == path)
+                        const Icon(Icons.check_circle, color: Colors.green),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: _pickCustomImage,
+              icon: const Icon(Icons.image),
+              label: const Text("Pick from Gallery"),
+            ),
+          ),
+          const SizedBox(height: 30),
         ],
       ),
     );
